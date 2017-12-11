@@ -1,0 +1,6 @@
+.ipynb_checkpoints
+*.so
+*.bin
+*.pkl
+*.json
+__pycache__
