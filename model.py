@@ -55,11 +55,15 @@ class CoattentionEncoder(nn.Module):
         enc_hidden = self.init_hidden(documents.size(0))
         d_o,h = self.enc_lstm(documents,enc_hidden)
         sentinel = Variable(torch.zeros(documents.size(0),1,self.hidden_size))
+        if self.use_cuda:
+            sentinel = sentinel.cuda()
         D = torch.cat([d_o,sentinel],1) # B,M+1,D
         
         enc_hidden = self.init_hidden(questions.size(0))
         q_o,h = self.enc_lstm(questions,enc_hidden)
         sentinel = Variable(torch.zeros(questions.size(0),1,self.hidden_size))
+        if self.use_cuda:
+            sentinel = sentinel.cuda()
         Q_prime = torch.cat([q_o,sentinel],1)
         Q = F.tanh(self.q_linear(Q_prime.view(Q_prime.size(0)*Q_prime.size(1),-1)))
         Q = Q.view(Q_prime.size(0),Q_prime.size(1),-1)  # B,N+1,D
