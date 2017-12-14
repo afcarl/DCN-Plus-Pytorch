@@ -143,16 +143,16 @@ def pad_to_batch(batch,w_to_ix): # for Squad dataset
     ends = torch.cat(e)
     return docs,questions,starts,ends
     
-def preprop(dataset):
+def preprop(dataset,word2index=None):
     docs,qu,_,start,end = list(zip(*dataset))
     
-    word2index={'<pad>':0,'<unk>':1,'<s>':2,'</s>':3}
+    if word2index is None:
+        word2index={'<pad>':0,'<unk>':1,'<s>':2,'</s>':3}
 
-    for tk in flatten(docs)+flatten(qu):
-        if tk not in word2index.keys():
-            word2index[tk]=len(word2index)
+        for tk in flatten(docs)+flatten(qu):
+            if tk not in word2index.keys():
+                word2index[tk]=len(word2index)
 
-    index2word = {v:k for k,v in word2index.items()}
     print("Successfully Build %d vocabs" % len(word2index))
     
     data_p=[]
@@ -165,4 +165,4 @@ def preprop(dataset):
         data_p.append(temp)
     print("Preprop Complete!")
     
-    return word2index,index2word,data_p
+    return word2index,data_p
