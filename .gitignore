@@ -2,6 +2,7 @@
 *.so
 *.bin
 *.pkl
+*.squad
 *.json
 *.txt
 __pycache__

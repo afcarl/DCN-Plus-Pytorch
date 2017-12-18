@@ -14,7 +14,7 @@ ByteTensor = torch.cuda.ByteTensor if USE_CUDA else torch.ByteTensor
 
 class CoattentionEncoder(nn.Module):
     
-    def __init__(self, vocab_size,embedding_size,hidden_size,n_layer=1,dropout_p=0.3,use_cuda=USE_CUDA):
+    def __init__(self, vocab_size,embedding_size,hidden_size,n_layer=1,dropout_p=0.3,use_cuda=False):
         super(CoattentionEncoder, self).__init__()
         
         self.hidden_size = hidden_size
@@ -32,6 +32,14 @@ class CoattentionEncoder(nn.Module):
         if use_cuda:
             self.cuda()
         
+    def init_embed(self,pretrained_wvectors,is_static=False):
+        self.d_embedding.weight = nn.Parameter(torch.from_numpy(pretrained_wvectors).float())
+        self.q_embedding.weight = nn.Parameter(torch.from_numpy(pretrained_wvectors).float())
+        
+        if is_static:
+            self.d_embedding.weight.requires_grad = False
+            self.q_embedding.weight.requires_grad = False
+            
     def init_hidden(self,size,direc=1,dim=1):
         hidden = Variable(torch.zeros(direc*self.n_layer,size,self.hidden_size*dim))
         context = Variable(torch.zeros(direc*self.n_layer,size,self.hidden_size*dim))
@@ -133,7 +141,7 @@ class HMN(nn.Module):
     
     
 class DynamicDecoder(nn.Module):
-    def __init__(self,hidden_size,pooling_size=8,dropout_p=0.3,max_iter=4,use_cuda=USE_CUDA):
+    def __init__(self,hidden_size,pooling_size=8,dropout_p=0.3,max_iter=4,use_cuda=False):
         super(DynamicDecoder,self).__init__()
         
         self.hidden_size = hidden_size
@@ -161,8 +169,8 @@ class DynamicDecoder(nn.Module):
         """
         hidden = self.init_hidden(U.size(0))
         si,ei = 0,1# 이거 랜덤으로 고르는거 맞음? 초기화에 관한 얘기가 없음 ㅡㅡ
-        u_s = torch.cat([u[0].unsqueeze(0) for u in U]) # Bx2D
-        u_e = torch.cat([u[1].unsqueeze(0) for u in U]) # Bx2D
+        u_s = torch.cat([u[si].unsqueeze(0) for u in U]) # Bx2D
+        u_e = torch.cat([u[ei].unsqueeze(0) for u in U]) # Bx2D
         entropies=[]
         for i in range(self.max_iter+1):
             entropy=[]

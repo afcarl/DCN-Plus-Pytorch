@@ -164,5 +164,6 @@ def preprop(dataset,word2index=None):
         temp.append(Variable(LongTensor([end[i]])).unsqueeze(0))
         data_p.append(temp)
     print("Preprop Complete!")
+
     
     return word2index,data_p
