@@ -194,6 +194,7 @@ class DynamicDecoder(nn.Module):
             hidden = self.dec_lstm_cell(torch.cat([u_s,u_e],1),hidden) 
             
             if is_training==False and si == alpha.data[0] and ei == beta.data[0]:
+                entropies.append(entropy)
                 break
             else:
                 entropies.append(entropy)
