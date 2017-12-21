@@ -19,12 +19,9 @@ class CoattentionEncoder(nn.Module):
         
         self.hidden_size = hidden_size
         self.n_layer = n_layer
-        self.d_embedding = nn.Embedding(vocab_size,embedding_size,padding_idx=0)
-        self.q_embedding = nn.Embedding(vocab_size,embedding_size,padding_idx=0)
-        
+        self.embedding = nn.Embedding(vocab_size,embedding_size,padding_idx=0) # shared embedding
         self.enc_lstm = nn.LSTM(embedding_size,hidden_size,n_layer,batch_first=True)
         self.coattn_lstm = nn.LSTM(hidden_size*3,hidden_size,batch_first=True,bidirectional=True)
-        
         self.q_linear = nn.Linear(hidden_size,hidden_size)
         self.dropout = nn.Dropout(dropout_p)
         self.use_cuda = use_cuda
@@ -33,12 +30,10 @@ class CoattentionEncoder(nn.Module):
             self.cuda()
         
     def init_embed(self,pretrained_wvectors,is_static=False):
-        self.d_embedding.weight = nn.Parameter(torch.from_numpy(pretrained_wvectors).float())
-        self.q_embedding.weight = nn.Parameter(torch.from_numpy(pretrained_wvectors).float())
+        self.embedding.weight = nn.Parameter(torch.from_numpy(pretrained_wvectors).float())
         
         if is_static:
-            self.d_embedding.weight.requires_grad = False
-            self.q_embedding.weight.requires_grad = False
+            self.embedding.weight.requires_grad = False
             
     def init_hidden(self,size,direc=1,dim=1):
         hidden = Variable(torch.zeros(direc*self.n_layer,size,self.hidden_size*dim))
@@ -53,8 +48,8 @@ class CoattentionEncoder(nn.Module):
         documents : B,M
         questions : B,N
         """
-        documents = self.d_embedding(documents)
-        questions = self.q_embedding(questions)
+        documents = self.embedding(documents)
+        questions = self.embedding(questions)
         
         if is_training:
             documents = self.dropout(documents)
