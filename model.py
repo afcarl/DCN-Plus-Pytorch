@@ -4,6 +4,8 @@ from torch.autograd import Variable
 import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
+from torch.nn.utils.rnn import pad_packed_sequence as unpack
+from torch.nn.utils.rnn import pack_padded_sequence as pack
 
 USE_CUDA = torch.cuda.is_available()
 
@@ -14,17 +16,22 @@ ByteTensor = torch.cuda.ByteTensor if USE_CUDA else torch.ByteTensor
 
 class CoattentionEncoder(nn.Module):
     
-    def __init__(self, vocab_size,embedding_size,hidden_size,n_layer=1,dropout_p=0.3,use_cuda=False):
+    def __init__(self, vocab_size,embedding_size,hidden_size,n_layer=1,dropout_p=0.3,use_cove=False,use_cuda=False):
         super(CoattentionEncoder, self).__init__()
         
         self.hidden_size = hidden_size
         self.n_layer = n_layer
-        self.embedding = nn.Embedding(vocab_size,embedding_size,padding_idx=0) # shared embedding
+        self.embedding = nn.Embedding(vocab_size,embedding_size) # shared embedding
         self.enc_lstm = nn.LSTM(embedding_size,hidden_size,n_layer,batch_first=True)
         self.coattn_lstm = nn.LSTM(hidden_size*3,hidden_size,batch_first=True,bidirectional=True)
         self.q_linear = nn.Linear(hidden_size,hidden_size)
         self.dropout = nn.Dropout(dropout_p)
         self.use_cuda = use_cuda
+        self.use_cove = use_cove
+        
+        if self.use_cove:
+            self.mtlstm = nn.LSTM(300, 300, num_layers=2, bidirectional=True)
+            self.mtlstm.load_state_dict(torch.load(THIS_PATH+'/models/wmtlstm-b142a7f2.pth')) # Cove
         
         if use_cuda:
             self.cuda()
@@ -43,7 +50,7 @@ class CoattentionEncoder(nn.Module):
             context=context.cuda()
         return (hidden,context)
     
-    def forward(self,documents,questions,is_training=False):
+    def forward(self,documents,questions,doc_lens,question_lens,is_training=False):
         """
         documents : B,M
         questions : B,N
@@ -55,21 +62,35 @@ class CoattentionEncoder(nn.Module):
             documents = self.dropout(documents)
             questions = self.dropout(questions)
         
+        # document encoding
         enc_hidden = self.init_hidden(documents.size(0))
-        d_o,h = self.enc_lstm(documents,enc_hidden)
+        lens, indices = torch.sort(doc_lens, 0, True)
+        packed_docs = pack(documents[indices], lens.tolist(), batch_first=True)
+        d_o,h = self.enc_lstm(packed_docs,enc_hidden)
+        d_o = unpack(d_o,batch_first=True)[0]
+        _, _indices = torch.sort(indices, 0)
+        d_o = d_o[_indices]
         sentinel = Variable(torch.zeros(documents.size(0),1,self.hidden_size))
         if self.use_cuda:
             sentinel = sentinel.cuda()
         D = torch.cat([d_o,sentinel],1) # B,M+1,D
         
+        # question encoding
         enc_hidden = self.init_hidden(questions.size(0))
-        q_o,h = self.enc_lstm(questions,enc_hidden)
+        lens, indices = torch.sort(question_lens, 0, True)
+        packed_questions = pack(questions[indices], lens.tolist(), batch_first=True)
+        q_o,h = self.enc_lstm(packed_questions,enc_hidden)
+        q_o = unpack(q_o,batch_first=True)[0]
+        _, _indices = torch.sort(indices, 0)
+        q_o = q_o[_indices]
         sentinel = Variable(torch.zeros(questions.size(0),1,self.hidden_size))
         if self.use_cuda:
             sentinel = sentinel.cuda()
         Q_prime = torch.cat([q_o,sentinel],1)
         Q = F.tanh(self.q_linear(Q_prime.view(Q_prime.size(0)*Q_prime.size(1),-1)))
         Q = Q.view(Q_prime.size(0),Q_prime.size(1),-1)  # B,N+1,D
+        
+        # Affinity Matrix
         L = torch.bmm(D,Q.transpose(1,2)) # Bx(M+1)x(N+1) Affinity Matrix
         attn_D,attn_Q=[],[]
         for i in range(L.size(0)):
@@ -116,9 +137,6 @@ class HMN(nn.Module):
         self.W_1 = Maxout(hidden_size*3,hidden_size,pooling_size)
         self.W_2 = Maxout(hidden_size,hidden_size,pooling_size)
         self.W_3 = Maxout(hidden_size*2,1,pooling_size)
-        #self.W_1 = nn.ModuleList([nn.Linear(hidden_size*3,hidden_size) for _ in range(pooling_size)])
-        #self.W_2 = nn.ModuleList([nn.Linear(hidden_size,hidden_size) for _ in range(pooling_size)])
-        #self.W_3 = nn.ModuleList([nn.Linear(hidden_size*2,hidden_size) for _ in range(pooling_size)])
         
     def forward(self,u_t,u_s,u_e,h):
         """

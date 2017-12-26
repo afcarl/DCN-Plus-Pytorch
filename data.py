@@ -139,9 +139,12 @@ def pad_to_batch(batch,w_to_ix): # for Squad dataset
 
     docs  = torch.cat(doc_p)
     questions = torch.cat(q_p)
+    doc_lens = LongTensor([list(map(lambda s: s ==0, t.data)).count(False) for t in docs])
+    question_lens = LongTensor([list(map(lambda s: s ==0, t.data)).count(False) for t in questions])
+    
     starts = torch.cat(s)
     ends = torch.cat(e)
-    return docs,questions,starts,ends
+    return docs,questions,doc_lens,question_lens,starts,ends
     
 def preprop(dataset,word2index=None):
     docs,qu,_,start,end = list(zip(*dataset))
