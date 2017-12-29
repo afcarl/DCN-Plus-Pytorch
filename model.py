@@ -21,7 +21,7 @@ class CoattentionEncoder(nn.Module):
         
         self.hidden_size = hidden_size
         self.n_layer = n_layer
-        self.embedding = nn.Embedding(vocab_size,embedding_size) # shared embedding
+        self.embedding = nn.Embedding(vocab_size,embedding_size, padding_idx=0) # shared embedding
         self.enc_lstm = nn.LSTM(embedding_size,hidden_size,n_layer,batch_first=True)
         self.coattn_lstm = nn.LSTM(hidden_size*3,hidden_size,batch_first=True,bidirectional=True)
         self.q_linear = nn.Linear(hidden_size,hidden_size)
