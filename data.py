@@ -19,6 +19,15 @@ FloatTensor = torch.cuda.FloatTensor if USE_CUDA else torch.FloatTensor
 LongTensor = torch.cuda.LongTensor if USE_CUDA else torch.LongTensor
 ByteTensor = torch.cuda.ByteTensor if USE_CUDA else torch.ByteTensor
 
+
+#def tokenize(sequence):
+#    sents = nltk.sent_tokenize(sequence)
+#    tokens=[]
+#    for sent in sents:
+#        token = ['<s>']+[token.replace("``", '"').replace("''", '"') for token in nltk.word_tokenize(sent)]+['</s>']
+#        tokens.extend(token)
+#    return tokens # .encode('utf8')
+
 def tokenize(sequence):
     tokens = [token.replace("``", '"').replace("''", '"') for token in nltk.word_tokenize(sequence)]
     return [x for x in tokens] # .encode('utf8')
@@ -150,7 +159,7 @@ def preprop(dataset,word2index=None):
     docs,qu,_,start,end = list(zip(*dataset))
     
     if word2index is None:
-        word2index={'<pad>':0,'<unk>':1,'<s>':2,'</s>':3}
+        word2index={'<pad>':0,'<unk>':1} #,'<s>':2,'</s>':3}
 
         for tk in flatten(docs)+flatten(qu):
             if tk not in word2index.keys():

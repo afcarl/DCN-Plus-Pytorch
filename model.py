@@ -185,7 +185,7 @@ class DynamicDecoder(nn.Module):
         u_s = torch.cat([u[si].unsqueeze(0) for u in U]) # Bx2D
         u_e = torch.cat([u[ei].unsqueeze(0) for u in U]) # Bx2D
         entropies=[]
-        for i in range(self.max_iter+1):
+        for i in range(self.max_iter):
             entropy=[]
             alphas=[]
             for u_t in U.transpose(0,1): # M,B,2D
@@ -206,7 +206,7 @@ class DynamicDecoder(nn.Module):
             
             hidden = self.dec_lstm_cell(torch.cat([u_s,u_e],1),hidden) 
             
-            if is_training==False and si == alpha.data[0] and ei == beta.data[0]:
+            if is_training == False and si == alpha.data[0] and ei == beta.data[0]:
                 entropies.append(entropy)
                 break
             else:
