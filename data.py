@@ -11,6 +11,9 @@ flatten = lambda l: [item for sublist in l for item in sublist]
 import json
 import nltk
 import os
+from torchtext.data import Field, RawField, Example, Dataset, Iterator
+from copy import deepcopy
+
 
 THIS_PATH = os.path.dirname(os.path.abspath(__file__))
 USE_CUDA = torch.cuda.is_available()
@@ -179,3 +182,23 @@ def preprop(dataset,word2index=None):
 
     
     return word2index,data_p
+
+# torchtext
+def prepare_dataset(dataset):
+    context, query, label,start, end = list(zip(*dataset))
+    
+    dataset = list(zip(context,deepcopy(context),query,deepcopy(query),start,end, label))
+    TEXT = Field(lower=True,include_lengths=False,batch_first=True)
+    CHAR = RawField()
+    LABEL = Field(sequential=False,tensor_type=torch.LongTensor)
+    
+    examples=[]
+    for i,d in enumerate(dataset):
+        if i % 100==0: print('[%d/%d]' % (i,len(dataset)))
+        examples.append(Example.fromlist(d,[('context',TEXT),('context_c',CHAR),('query',TEXT),('query_c',CHAR),('start',LABEL),('end',LABEL),('label',TEXT)]))
+        
+    dataset = Dataset(examples,[('context',TEXT),('context_c',CHAR),('query',TEXT),('query_c',CHAR),('start',LABEL),('end',LABEL),('label',TEXT)])
+    TEXT.build_vocab(dataset,min_freq=2)
+    #CHAR.build_vocab(dataset)
+    
+    return dataset,TEXT,CHAR
